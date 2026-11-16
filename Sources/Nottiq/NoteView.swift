@@ -1,21 +1,12 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Design constants (mirror the React reference)
-
 private enum Glass {
-    // Base dark translucent tint (React: rgba(30,28,53,0.30))
     static let base = Color(red: 30/255, green: 28/255, blue: 53/255)
-
-    // Corner radius (React dock = 32, panel = 28; we use 22 for notes)
     static let radius: CGFloat = 22
-
-    // Shadow
     static let shadowColor = Color.black.opacity(0.55)
     static let shadowRadius: CGFloat = 28
     static let shadowY: CGFloat = 12
-
-    // Top/bottom light bands (React: linear-gradient 0.05 → 0.015 → 0.05)
     static let lightTop = Color.white.opacity(0.06)
     static let lightMid = Color.white.opacity(0.015)
     static let lightBottom = Color.white.opacity(0.05)
@@ -33,22 +24,16 @@ struct NoteView: View {
     var body: some View {
         if let note = note {
             ZStack {
-                // 1. Frosted glass — the "backdrop-filter: blur(6px) saturate(170%)".
-                //    `.hudWindow` is macOS's darkest vibrant material — closest to the
-                //    React `rgba(30,28,53,...)` base.
                 VisualEffectView(material: .hudWindow, blending: .behindWindow)
                     .ignoresSafeArea()
 
-                // 2. Dark translucent tint over the blur.
                 Glass.base.opacity(0.32)
                     .ignoresSafeArea()
 
-                // 3. Optional note-color tint (subtle — 18% not 55% so it stays glassy).
                 noteColor(note.color)
                     .opacity(0.18)
                     .ignoresSafeArea()
 
-                // 4. Light gradient band (top → mid → bottom) — the "liquid" sheen.
                 LinearGradient(
                     stops: [
                         .init(color: Glass.lightTop,    location: 0.0),
@@ -61,7 +46,6 @@ struct NoteView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-                // 5. Content
                 VStack(alignment: .leading, spacing: 0) {
                     topBar(note)
                     Divider()
@@ -70,7 +54,6 @@ struct NoteView: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Glass.radius, style: .continuous))
-            // 6. Edge stroke — soft white gradient (React: no hard border, just glow).
             .overlay(
                 RoundedRectangle(cornerRadius: Glass.radius, style: .continuous)
                     .stroke(
@@ -85,7 +68,6 @@ struct NoteView: View {
                         lineWidth: 1
                     )
             )
-            // 7. Inner glow at the bottom edge (React: inset 0 -14px 20px -16px rgba(255,255,255,0.05))
             .overlay(
                 RoundedRectangle(cornerRadius: Glass.radius, style: .continuous)
                     .stroke(Color.white.opacity(0.04), lineWidth: 8)
@@ -103,7 +85,6 @@ struct NoteView: View {
                     )
                     .allowsHitTesting(false)
             )
-            // 8. Drop shadow
             .shadow(color: Glass.shadowColor, radius: Glass.shadowRadius, x: 0, y: Glass.shadowY)
             .contextMenu {
                 backgroundContextMenu(note)
@@ -111,10 +92,12 @@ struct NoteView: View {
         }
     }
 
-    // MARK: - Top bar
+    // MARK: - Top bar (draggable)
 
     private func topBar(_ note: Note) -> some View {
         HStack(spacing: 8) {
+            DragGrip()
+
             TextField("Title", text: Binding(
                 get: { self.note?.title ?? "" },
                 set: { newTitle in
@@ -129,7 +112,6 @@ struct NoteView: View {
 
             Spacer(minLength: 0)
 
-            // Color swatch
             Menu {
                 ForEach(NoteColor.allCases, id: \.self) { color in
                     Button {
@@ -159,7 +141,6 @@ struct NoteView: View {
             .menuIndicator(.hidden)
             .fixedSize()
 
-            // Actions menu
             Menu {
                 actionsMenu(note)
             } label: {
@@ -171,7 +152,6 @@ struct NoteView: View {
             .menuIndicator(.hidden)
             .fixedSize()
 
-            // Close (×)
             Button {
                 closeNote()
             } label: {
@@ -185,17 +165,19 @@ struct NoteView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        // Slight top highlight band (React: rgba(255,255,255,0.18 → 0.04))
         .background(
-            LinearGradient(
-                colors: [Color.white.opacity(0.10), Color.white.opacity(0.02)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            ZStack {
+                LinearGradient(
+                    colors: [Color.white.opacity(0.10), Color.white.opacity(0.02)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                WindowDragHandle()
+            }
         )
     }
 
-    // MARK: - Menus (unchanged logic)
+    // MARK: - Menus
 
     @ViewBuilder
     private func actionsMenu(_ note: Note) -> some View {
@@ -257,7 +239,7 @@ struct NoteView: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: - Actions (unchanged)
+    // MARK: - Actions
 
     private func duplicateNote(_ note: Note) {
         let copy = Note(
@@ -317,5 +299,37 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
         nsView.material = material
         nsView.blendingMode = blending
+    }
+}
+
+// MARK: - Drag helpers
+
+struct WindowDragHandle: NSViewRepresentable {
+    func makeNSView(context: Context) -> DragView { DragView() }
+    func updateNSView(_ nsView: DragView, context: Context) {}
+
+    final class DragView: NSView {
+        override var mouseDownCanMoveWindow: Bool { true }
+        override func mouseDown(with event: NSEvent) {
+            window?.performDrag(with: event)
+        }
+    }
+}
+
+struct DragGrip: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<2) { _ in
+                VStack(spacing: 2) {
+                    ForEach(0..<3) { _ in
+                        Circle()
+                            .fill(Color.white.opacity(0.28))
+                            .frame(width: 2.5, height: 2.5)
+                    }
+                }
+            }
+        }
+        .frame(width: 12)
+        .help("Drag to move")
     }
 }
