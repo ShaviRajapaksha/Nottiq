@@ -36,11 +36,20 @@ final class NoteWindowController: NSWindowController, NSWindowDelegate {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = true
-
-        // Level from saved preference
-        window.level = note.isAlwaysOnTop ? .floating : .normal
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.minSize = NSSize(width: 220, height: 220)
+
+        // Level from saved preference (inline, since self isn't initialized yet)
+        switch note.windowLevel {
+        case .normal:
+            window.level = .normal
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        case .alwaysOnTop:
+            window.level = .floating
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        case .alwaysOnBack:
+            window.level = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue - 1)
+            window.collectionBehavior = [.canJoinAllSpaces]
+        }
 
         if let saved = FrameStore.loadFrame(for: note.id) {
             window.setFrame(saved, display: false)
@@ -72,8 +81,22 @@ final class NoteWindowController: NSWindowController, NSWindowDelegate {
     func show() { showWindow(nil) }
     func hide() { window?.orderOut(nil) }
 
-    func setAlwaysOnTop(_ enabled: Bool) {
-        window?.level = enabled ? .floating : .normal
+    func setWindowLevel(_ level: NoteWindowLevel) {
+        guard let window else { return }
+        switch level {
+        case .normal:
+            window.level = .normal
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        case .alwaysOnTop:
+            window.level = .floating
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        case .alwaysOnBack:
+            window.level = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue - 1)
+            window.collectionBehavior = [.canJoinAllSpaces]
+        }
+        if window.isVisible {
+            window.orderFrontRegardless()
+        }
     }
 
     // MARK: - NSWindowDelegate
