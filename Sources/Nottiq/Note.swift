@@ -4,6 +4,12 @@ enum NoteColor: String, CaseIterable, Codable {
     case yellow, pink, blue, green, purple, white
 }
 
+enum NoteWindowLevel: String, Codable, CaseIterable {
+    case normal
+    case alwaysOnTop
+    case alwaysOnBack
+}
+
 struct Note: Identifiable, Codable, Equatable {
     let id: UUID
     var title: String
@@ -11,7 +17,13 @@ struct Note: Identifiable, Codable, Equatable {
     var color: NoteColor
     var createdAt: Date
     var updatedAt: Date
-    var isAlwaysOnTop: Bool
+    var windowLevel: NoteWindowLevel
+
+    // Backward-compat convenience — existing code that reads `isAlwaysOnTop` still works.
+    var isAlwaysOnTop: Bool {
+        get { windowLevel == .alwaysOnTop }
+        set { windowLevel = newValue ? .alwaysOnTop : .normal }
+    }
 
     init(
         id: UUID = UUID(),
@@ -20,7 +32,7 @@ struct Note: Identifiable, Codable, Equatable {
         color: NoteColor = .yellow,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
-        isAlwaysOnTop: Bool = true
+        windowLevel: NoteWindowLevel = .normal
     ) {
         self.id = id
         self.title = title
@@ -28,12 +40,11 @@ struct Note: Identifiable, Codable, Equatable {
         self.color = color
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.isAlwaysOnTop = isAlwaysOnTop
+        self.windowLevel = windowLevel
     }
 
-    // Custom decoder so old notes.json files (without isAlwaysOnTop) still load.
     private enum CodingKeys: String, CodingKey {
-        case id, title, content, color, createdAt, updatedAt, isAlwaysOnTop
+        case id, title, content, color, createdAt, updatedAt, windowLevel, isAlwaysOnTop
     }
 
     init(from decoder: Decoder) throws {
@@ -44,6 +55,26 @@ struct Note: Identifiable, Codable, Equatable {
         color = try c.decode(NoteColor.self, forKey: .color)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
-        isAlwaysOnTop = try c.decodeIfPresent(Bool.self, forKey: .isAlwaysOnTop) ?? true
+
+        // Prefer new key; fall back to old boolean for backward compatibility.
+        if let level = try c.decodeIfPresent(NoteWindowLevel.self, forKey: .windowLevel) {
+            windowLevel = level
+        } else if let oldBool = try c.decodeIfPresent(Bool.self, forKey: .isAlwaysOnTop) {
+            windowLevel = oldBool ? .alwaysOnTop : .normal
+        } else {
+            windowLevel = .normal
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(content, forKey: .content)
+        try c.encode(color, forKey: .color)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(windowLevel, forKey: .windowLevel)
+        // Do NOT encode isAlwaysOnTop anymore — it's derived.
     }
 }
