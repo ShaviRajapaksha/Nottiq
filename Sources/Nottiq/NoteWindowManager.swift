@@ -1,6 +1,9 @@
 import AppKit
 
 final class NoteWindowManager {
+    static let shared = NoteWindowManager()
+    private init() {}
+
     private var controllers: [UUID: NoteWindowController] = [:]
 
     func openWindow(for note: Note, store: NoteStore) {
@@ -13,6 +16,7 @@ final class NoteWindowManager {
         controllers[note.id] = controller
         controller.onClose = { [weak self] id in
             self?.controllers[id] = nil
+            self?.demoteIfEmpty()
         }
         controller.show()
     }
@@ -22,10 +26,12 @@ final class NoteWindowManager {
         controllers[id] = nil
         controller.onClose = nil
         controller.close()
+        demoteIfEmpty()
     }
 
     func hide(noteID: UUID) {
         controllers[noteID]?.hide()
+        demoteIfEmpty()
     }
 
     func showAll() {
@@ -34,11 +40,28 @@ final class NoteWindowManager {
 
     func hideAll() {
         for controller in controllers.values { controller.hide() }
+        demoteIfEmpty()
     }
 
     func openAllNotes(from store: NoteStore) {
         for note in store.notes {
             openWindow(for: note, store: store)
+        }
+    }
+
+    func setAlwaysOnTop(noteID: UUID, enabled: Bool) {
+        controllers[noteID]?.setAlwaysOnTop(enabled)
+    }
+
+    private func demoteIfEmpty() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let hasVisible = self.controllers.values.contains { controller in
+                controller.window?.isVisible == true
+            }
+            if !hasVisible {
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
     }
 }
