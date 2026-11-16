@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Nottiq}",
+            "name": "Debug Nottiq",
+            "target": "Nottiq",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Nottiq"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Nottiq}",
+            "name": "Release Nottiq",
+            "target": "Nottiq",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Nottiq"
+        }
+    ]
+}
