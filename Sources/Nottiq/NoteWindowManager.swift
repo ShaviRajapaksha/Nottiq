@@ -49,8 +49,8 @@ final class NoteWindowManager {
         }
     }
 
-    func setAlwaysOnTop(noteID: UUID, enabled: Bool) {
-        controllers[noteID]?.setAlwaysOnTop(enabled)
+    func setWindowLevel(noteID: UUID, level: NoteWindowLevel) {
+        controllers[noteID]?.setWindowLevel(level)
     }
 
     private func demoteIfEmpty() {
