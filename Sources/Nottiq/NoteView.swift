@@ -24,32 +24,40 @@ struct NoteView: View {
     var body: some View {
         if let note = note {
             ZStack {
-                VisualEffectView(material: .hudWindow, blending: .behindWindow)
-                    .ignoresSafeArea()
-
-                Glass.base.opacity(0.32)
-                    .ignoresSafeArea()
-
+                // Main sticker background
                 noteColor(note.color)
-                    .opacity(0.18)
-                    .ignoresSafeArea()
 
+                // Glass effect — clipped at the AppKit layer to the rounded rect
+                RoundedVisualEffectView(
+                    material: .hudWindow,
+                    blending: .behindWindow,
+                    cornerRadius: Glass.radius
+                )
+                .allowsHitTesting(false)
+
+                // Subtle glass lighting
                 LinearGradient(
-                    stops: [
-                        .init(color: Glass.lightTop,    location: 0.0),
-                        .init(color: Glass.lightMid,    location: 0.55),
-                        .init(color: Glass.lightBottom, location: 1.0)
+                    colors: [
+                        Color.white.opacity(0.10),
+                        Color.white.opacity(0.02),
+                        Color.black.opacity(0.03)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea()
                 .allowsHitTesting(false)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    topBar(note)
+                    dragHeader(note)
+
                     Divider()
-                        .overlay(Color.white.opacity(0.12))
+                        .overlay(Color.black.opacity(0.10))
+
+                    topBar(note)
+
+                    Divider()
+                        .overlay(Color.black.opacity(0.10))
+
                     contentArea(note)
                 }
             }
@@ -92,23 +100,11 @@ struct NoteView: View {
         }
     }
 
-    // MARK: - Top bar (draggable)
+    // MARK: - Drag header (top strip only, for moving the window)
 
-    private func topBar(_ note: Note) -> some View {
+    private func dragHeader(_ note: Note) -> some View {
         HStack(spacing: 8) {
             DragGrip()
-
-            TextField("Title", text: Binding(
-                get: { self.note?.title ?? "" },
-                set: { newTitle in
-                    guard var n = self.note else { return }
-                    n.title = newTitle
-                    store.updateNote(n)
-                }
-            ))
-            .textFieldStyle(.plain)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
 
             Spacer(minLength: 0)
 
@@ -164,7 +160,7 @@ struct NoteView: View {
             .help("Close note")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .background(
             ZStack {
                 LinearGradient(
@@ -175,6 +171,29 @@ struct NoteView: View {
                 WindowDragHandle()
             }
         )
+    }
+
+    // MARK: - Title bar (below the header, not a drag target)
+
+    private func topBar(_ note: Note) -> some View {
+        HStack(spacing: 8) {
+            TextField("Untitled", text: Binding(
+                get: { self.note?.title ?? "" },
+                set: { newTitle in
+                    guard var n = self.note else { return }
+                    n.title = newTitle
+                    store.updateNote(n)
+                }
+            ))
+            .textFieldStyle(.plain)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.clear)
     }
 
     // MARK: - Menus
@@ -281,24 +300,43 @@ struct NoteView: View {
     private func noteColor(_ color: NoteColor) -> Color { swatchColor(color) }
 }
 
-// MARK: - NSVisualEffectView bridge
+// MARK: - Rounded NSVisualEffectView bridge
 
-struct VisualEffectView: NSViewRepresentable {
+/// An `NSVisualEffectView` that clips its own blur output to a rounded rect.
+final class RoundedVisualEffectNSView: NSVisualEffectView {
+    var cornerRadius: CGFloat = 0
+
+    override func layout() {
+        super.layout()
+        wantsLayer = true
+        layer?.cornerRadius = cornerRadius
+        layer?.cornerCurve = .continuous
+        layer?.masksToBounds = true
+    }
+}
+
+struct RoundedVisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
     var blending: NSVisualEffectView.BlendingMode
+    var cornerRadius: CGFloat
 
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
+    func makeNSView(context: Context) -> RoundedVisualEffectNSView {
+        let view = RoundedVisualEffectNSView()
         view.material = material
         view.blendingMode = blending
         view.state = .active
         view.isEmphasized = true
+        view.cornerRadius = cornerRadius
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+    func updateNSView(_ nsView: RoundedVisualEffectNSView, context: Context) {
         nsView.material = material
         nsView.blendingMode = blending
+        if nsView.cornerRadius != cornerRadius {
+            nsView.cornerRadius = cornerRadius
+            nsView.needsLayout = true
+        }
     }
 }
 
