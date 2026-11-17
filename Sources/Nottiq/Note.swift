@@ -29,7 +29,7 @@ struct Note: Identifiable, Codable, Equatable {
         id: UUID = UUID(),
         title: String = "Untitled",
         content: String = "",
-        color: NoteColor = .yellow,
+        color: NoteColor = .white,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         windowLevel: NoteWindowLevel = .normal
