@@ -15,28 +15,29 @@ final class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         let window = StickyNoteWindow(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 280),
-            styleMask: [.titled, .resizable, .fullSizeContentView],
+            styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
         )
         window.identifier = NSUserInterfaceItemIdentifier(note.id.uuidString)
         window.contentViewController = hosting
 
-        // Invisible title bar
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.titlebarSeparatorStyle = .none
         window.isMovableByWindowBackground = true
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
 
         // Visual style
         window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = true
+        window.hasShadow = false               // ← was true: square shadow halo
         window.minSize = NSSize(width: 220, height: 220)
+
+        // Make sure the content view itself is fully transparent
+        if let contentView = window.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.backgroundColor = NSColor.clear.cgColor
+            contentView.layer?.cornerRadius = 22
+            contentView.layer?.masksToBounds = true
+        }
 
         // Level from saved preference (inline, since self isn't initialized yet)
         switch note.windowLevel {
