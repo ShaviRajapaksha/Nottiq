@@ -12,13 +12,24 @@ final class NoteWindowManager {
             return
         }
 
-        let controller = NoteWindowController(note: note, store: store, windowManager: self)
+        let controller = NoteWindowController(
+            note: note,
+            store: store,
+            windowManager: self
+        )
+
         controllers[note.id] = controller
+
         controller.onClose = { [weak self] id in
             self?.controllers[id] = nil
             self?.demoteIfEmpty()
         }
+
         controller.show()
+
+        if let window = controller.window {
+            window.isMovableByWindowBackground = true
+        }
     }
 
     func closeWindow(for id: UUID) {
